@@ -1,0 +1,262 @@
+%% ------------------------------------------------------------------------- %%
+\chapter{Fundamentação teórica}
+\label{cap:fundamentacao-teorica}
+
+De acordo com \cite{Chen-bi-variational-autoencoder:2018}, a tarefa do \textit{code retrieval} consiste em:
+
+\emph{Dado uma descrição em linguagem natural, recuperar o trecho de código-fonte mais relevante, tal que os desenvolvedores possam encontrar rapidamente os trechos de código que atendam as suas necessidades.}
+
+Já \cite{cambronero-deep-learning-code-search:2019} utiliza um outro termo para referir-se a \textit{code retrieval}, é o termo \textit{code search}. Para ele, o objetivo do \textit{code search} é recuperar um trecho de código-fonte a partir de um enorme repositório de código-fonte, que mais se aproxima da intenção do desenvolvedor, expressa em linguagem natural. Ambos os termos, a nosso entendimento, referem-se a mesma tarefa. Neste trabalho, utilizaremos o termo \textit{code retrieval} cunhado por \cite{Chen-bi-variational-autoencoder:2018} para referir-se a recuperação de trecho de código-fonte. 
+
+Conforme \cite{cambronero-deep-learning-code-search:2019}, recuperação de trecho de código-fonte consiste em recuperar o trecho de código que mais se aproxima da intenção do usuário expressa em linguagem natural. No nosso caso, as intenções expressas em linguagem natural serão títulos de questões coletadas do site Stack Overflow. Estas questões coletadas tem uma característica importante, elas são do tipo \textit{how-to-do-it}. Estes tipos de questões expressam a intenção do usuário. A partir disso, quando fizermos referência a palavra \emph{questão}, estaremos nos referindo a intenção do desenvolvedor expressa em linguagem natural.
+
+
+
+\section{Definição}\label{sec:code-retrieval-definicao}
+
+
+Para formalizarmos a tarefa de \textit{code retrieval}, adotaremos a mesma definição proposta por \cite{iyer-etal-2016-summarizing} e \cite{Yao-coacor:2019}:
+
+Seja $\mathbb{Q}$ um conjunto formado por questões e/ou intenções descritas em linguagem natural. Seja $\mathbb{C}$ um conjunto de trechos de códigos-fontes. Dado uma questão em linguagem natural $q \in \mathbb{Q}$ e um conjunto com os trechos de código-fonte candidatos $\mathbb{C}_{a} \subset \mathbb{C}$. O objetivo do \textit{code retrieval} é recuperar o trecho de código $c^{+} \in \mathbb{C}_{a}$, onde $c^{+}$ é a resposta anotada como correta a dada questão. Formalmente, para um corpus de treinamento composto por pares de questões e trechos de código-fonte, \textit{code retrieval} é definido como:
+
+\textbf{Code Retrieval}: Dada uma questão em linguagem natural $q \in \mathbb{Q}$, um modelo $F_{r}$ será treinado a recuperar $c^{+} \in \mathbb{C}_{a}$ com a maior pontuação:
+
+\begin{equation}\label{eq:code-retrieval}
+c^{+} = \underset{c \in \mathbb{C}_{a}}{argmax}\text{ } F_{r}(q , c)
+\end{equation}
+
+\section{\textit{Joint Embeddings}}
+
+Segundo \cite{Goodfellow-et-al-2016:representation-learning}, um fator importante a ser levado em consideração é a forma como os dados são representados. Uma boa representação consegue identificar as características relevantes e os fatores causadores dos dados observados. Além disso, uma boa representação deve ser capaz de facilitar na aprendizagem de uma tarefa posterior.
+
+Dado que o nosso conjunto de dados é formado por pares de questões e trechos de código-fonte coletados do Stack Overflow. E cada questão e trecho de código-fonte é composto por uma sequência de palavras e símbolos.
+Uma boa representação para as palavras, que compõem eles, é um vetor de representação distribuída. Segundo \cite{Goodfellow-et-al-2016:representation-learning}, as redes neurais generalizam bem quando as palavras são representadas através de vetores de representação distribuída em comparação a um \gls{one-hot-encoding}. Representação distribuída induz a um rico espaço de similaridade, no qual conceitos semanticamente similares estão próximos, uma propriedade que não está presente em representações puramente simbólicas.
+
+A representação é um fator importante para a tarefa de \textit{code retrieval}. Pois com uma boa representação, um modelo de redes neurais será capaz de aproximar os trechos de código-fonte as intenções do desenvolvedor mais facilmente. Três aspectos devem ser levados em consideração ao fazer esta aproximação. O primeiro aspecto é a representação dos \textit{tokens} ou palavras que compõem as intenções e os trechos de códigos-fontes. O segundo é a obtenção de uma representação para as intenções e trechos de códigos. E por último, como fazer a associação entre eles.
+
+\subsection{\textit{Representação dos \textit{tokens} ou palavras}}
+
+As questões e os trechos de códigos-fontes são compostas por um conjunto de palavras ou \textit{tokens}. E conforme citado anteriormente, uma boa representação para as palavras é um vetor de representação distribuída. No caso, o vetor de representação distribuída ou \textit{embedding} permite representar uma palavra através de um vetor com valores reais ($\mathbb{R}$). Podemos definir \textbf{embedding} como uma função $\mathbb{E}$ \citep{cambronero-deep-learning-code-search:2019}:
+
+\begin{equation}
+    \mathbb{E}: \mathbb{X} \rightarrow \mathbb{R}^{d}
+\end{equation}
+
+A função $\mathbb{E}$ mapeia um dado de entrada $x$, $x \in \mathbb{X}$, para um vetor de \gls{representacao-distribuida} correspondente em um espaço vetorial de dimensão $d$. O vetor de representação distribuída utiliza a hipótese distribucional, no qual palavras que estão próximas uma das outras em vários contextos tem significados similares \citep{Goodfellow-et-al-2016:representation-learning}. Uma opção para a função $\mathbb{E}$ é utilizar o algoritmo não-supervisionado \textit{word2vec}. O \textit{word2vec} utiliza o algoritmo \textit{skip-gram} ou \acrshort{cbow}. A diferença basicamente entre eles é que o \acrshort{cbow} prediz uma palavra de acordo com as palavras do contexto e o \textit{skip-gram} faz o inverso, prediz as palavras do contexto dado uma palavra alvo \citep{mikolov2013distributed}.
+
+Por exemplo, dado o trecho de código-fonte abaixo:
+
+\begin{mypython}{Python: Exemplo de código para escrever em um arquivo}
+with open(filename, mode) as file:
+    file.write(text)
+\end{mypython}
+
+Removendo os acentos, tabulações, quebra de linha e as pontuações, o código-fonte pode ser representado por um vetor formado pela seguinte sequência de palavras:
+
+\begin{mypythonembedding}{Trecho de código-fonte representado através de vetor de \textit{tokens}.}
+  ['with', 'open', 'filename', 'mode', 'as', 'file', 'file', 'write', 'text']
+\end{mypythonembedding}
+
+Neste caso, ao utilizar o \textit{skip-gram} do \textit{wordvec} para a palavra \emph{file}. Ele representará a palavra \emph{file} próxima das palavras \emph{mode}, \emph{as}, \emph{file}, \emph{write}, caso o parâmetro \textit{window} seja $2$. O parâmetro \textit{window} define basicamente quantas palavras a direita e a esquerda fazem parte do contexto.
+
+\begin{mypythonembedding}{Palavra \textit{file}, em amarelo, e as palavras similares, em verde.}
+  ['with', 'open', 'filename', |\colorbox{green}{mode}|, |\colorbox{green}{as}|, |\colorbox{yellow}{file}|, |\colorbox{green}{file}|, |\colorbox{green}{write}|, 'text']
+\end{mypythonembedding}
+
+O algoritmo \textit{skip-gram} mapeia as palavras que estão perto uma das outras em diferentes contextos para regiões próximas no espaço vetorial $\mathbb{R}^{d}$. Lembrando que estas palavras são representadas por vetores de valores reais ($\mathbb{R}$). Os vetores que estão próximos um dos outros são considerados similares. No caso da aplicação do \textit{word2vec} em trechos de código-fonte em Python, por exemplo, é possível verificar que a palavra \emph{if} tem como palavras similares \emph{elif} e \emph{else}. Ou no caso do exemplo anterior, a palavra \emph{file} terá como palavras similares \emph{mode}, \emph{as}, \emph{write}. Isto ocorre pois este conjunto de palavras costumam aparecer próximas umas das outras em diferentes trechos de código-fonte. Devido a isto, o \textit{skip-gram} vai mapear os vetores que representam estas palavras para regiões próximas no espaço vetorial $\mathbb{R}^{d}$.
+
+
+\subsection{\textit{Representação das sentenças e código-fonte}}
+
+O vetor de representação distribuída de cada palavra pode ser combinada para gerar um vetor de representação distribuída para a sentença inteira, e.g., podemos ter um vetor de representação distribuída para a questão inteira, combinando os vetores de cada palavra que fazem parte da questão. De acordo com \cite{cambronero-deep-learning-code-search:2019}, duas possíveis abordagens podem ser utilizadas para combinar as palavras. Na primeira abordagem, podemos tratar o vetor de palavras como um \textit{bag}. Neste caso, a ordem das palavras não importa. Por exemplo, o vetor abaixo:
+
+\begin{mypythonembedding}{Vetor de \textit{tokens}.}
+  ['with', 'open', 'filename', 'mode', 'as', 'file', 'file', 'write', 'text']
+\end{mypythonembedding}
+
+Seria equivalente a seguinte permutação:
+
+\begin{mypythonembedding}{Vetor de \textit{tokens} embaralhado.}
+['file', 'as', 'with', 'write', 'file', 'text', 'mode', 'open', 'filename']
+\end{mypythonembedding}
+
+Nesta abordagem, podemos utilizar uma rede neural que agrupa os tokens através de uma função de agrupamento que obtém o valor máximo, \textit{maxpool}, por exemplo.
+
+Uma outra abordagem é levar em consideração a ordem. Para isto, podemos utilizar o \acrfull{lstm}, uma variação do \acrfull{rnn}, para obter uma representação dos \textit{tokens}. Os vetores de representação de cada palavra serão fornecidos um a um sequencialmente a rede neural. O termo \emph{recorrente} do nome \acrfull{rnn} refere-se a forma como é aplicada os mesmos passos a cada item da sequência de tal forma que a saída é dependente dos resultados e cálculos prévios \citep{tom-young:trends-deep-learning-nlp}.
+
+
+
+No caso do LSTM, por exemplo, dado uma sequência de vetores de representação de cada palavra, $\bm{x} = \{ \bm{x}(1), \bm{x}(2), . . ., \bm{x}(n) \}$, onde $\bm{x}(t)$ é um vetor de representação distribuída de dimensão $d$. $\bm{x}$ pode ser uma questão ou trecho de código-fonte, por exemplo. Podemos combinar cada palavra da questão ou trecho de código-fonte fornecendo-os sequencialmente para obter a combinação ou representação final através de um vetor $\bm{h}$. A cada passo uma palavra é fornecida como entrada a rede LSTM. No passo $t$, o valor do vetor de resultado $\bm{h}(t)$ (tamanho $H$) é:
+
+\begin{equation}
+    i_{t} = \sigma(\bm{W}_{i}\bm{x}(t) + \bm{U}_{i}\bm{h}(t - 1) + \bm{b}_{i})
+\end{equation}
+\begin{equation}
+    f_{t} = \sigma(\bm{W}_{f}\bm{x}(t) + \bm{U}_{f}\bm{h}(t - 1) + \bm{b}_{f})
+\end{equation}
+\begin{equation}
+    o_{t} = \sigma(\bm{W}_{o}\bm{x}(t) + \bm{U}_{o}\bm{h}(t - 1) + \bm{b}_{o})
+\end{equation}
+\begin{equation}
+    \bar{C}_{t} = tanh(\bm{W}_{c}\bm{x}(t) + \bm{U}_{c}\bm{h}(t - 1) + \bm{b}_{c})
+\end{equation}
+\begin{equation}
+    C_{t} = i_{t} * \bar{C}_t + f_{t} * C_{t - 1}
+\end{equation}
+\begin{equation}
+    \bm{h}_{t} = o_{t} * tanh(C_{t})
+\end{equation}
+
+A arquitetura do LSTM tem três portas (porta de entrada $i$, porta \textit{forget} $f$ e porta \textit{output} $o$), um vetor de célula de memória $C$, $\sigma$ é a função sigmóide. A porta de entrada determina como os vetores $x_{t}$ alteram o estado da célula de memória. A porta \textit{output} permite a célula de memória influenciar os resultados finais. Por fim, a porta \textit{forget} é um mecanismo que permite a célula de memória esquecer ou lembrar os estados anteriores. $\bm{W} \in \mathbb{R}^{H X d}$, $\bm{U} \in \mathbb{R}^{H X H}$ e $\bm{b} \in \mathbb{R}^{H X 1}$ são as matrizes de pesos a serem aprendidos \citep{tan-lstm-qa}.
+
+O vetor \textit{hidden} $\bm{h}$ é apontado comumemente como a parte mais importante do \acrshort{lstm}. Pois ele engloba o resultado dos cálculos e, implicitamente, através da célula de mémoria $C$, os resultados prévios. Normalmente, ele é utilizado para representar os dados \citep{tom-young:trends-deep-learning-nlp}.
+No nosso caso, para representar uma questão ou trecho de código-fonte, podemos calcular a média dos vetores de resultado $\bm{h} = \{ \bm{h}_{1}, \bm{h}_{2}, . . ., \bm{h}_t \}$ após $t$ iterações, por exemplo.
+
+\subsection{Agrupamento de representações distribuídas}
+
+Com os vetores de representação das questões e trechos de código-fonte, o objetivo é encontrar um modelo que seja capaz de recuperar o trecho de código-fonte mais relevante para uma determinada questão. Uma abordagem comumente utilizada é mapear os vetores das questões e trechos de código-fonte para um mesmo espaço vetorial. E apróximá-los através de uma função objetivo, de tal maneira que as questões fiquem próximas dos trechos de código-fonte relevantes. 
+
+Nesta abordagem, o objetivo é encontrar um modelo que consiga correlacionar dados heterogêneos. No livro \cite{Goodfellow-et-al-2016:representation-learning}, a associação entre as representações é referida como agrupamento de distribuições ou \textit{joint distribution}. Já \cite{cambronero-deep-learning-code-search:2019} e \cite{Allamanis-bimodal-source-code-natural-language:2015} utilizam o termo \textit{bi-modal embedding}. \cite{Zhang:2019:deep-learning-recommender-survey} utilizam \textit{jointly model}. E \cite{Gu-deep-code-search:2018} utilizam o temo agrupamento de representação distribuída ou \textit{joint embedding}. Neste trabalho, utilizaremos o termo \textit{joint embedding} ou agrupamento de representação distribuída.
+
+
+\textit{Joint embedding}, ou agrupamento de representação distribuída, é uma técnica para mapear dados heterogêneos para um mesmo espaço vetorial, de tal forma que conceitos similares ocupem regiões próximas neste espaço \citep{Gu-deep-code-search:2018}. Esta técnica é comumente utilizada para encontrar modelos que correlacionem imagem e texto, tradução de textos e também é utilizada em problemas de perguntas e respostas e recomendações de conteúdo \citep{lai-etal-2018-review, Zhang:2019:deep-learning-recommender-survey}.
+
+Por exemplo, sejam $\mathbb{Q}$ e $\mathbb{C}$ conjuntos de dados heterogêneos. \textit{Joint embedding} pode ser formulado como:
+
+\begin{equation}
+        f: q \rightarrow t_{q} \rightarrow h_{\theta}(t_{q}, t_{c}) \leftarrow t_{c} \leftarrow c :g
+\end{equation}
+
+A função $f$, $f: q \rightarrow \mathbb{R}^{d}$, mapeia o vetor  $q \in \mathbb{Q}$ para um espaço vetorial $\mathbb{R}$ de dimensão \emph{d}. A função $g$, $g: c \rightarrow \mathbb{R}^{d}$, mapeia o vetor $c \in \mathbb{C}$ para o mesmo espaço vetorial $\mathbb{R}$. A função $h_{\theta}$ calcula a similaridade entre dois vetores do mesmo espaço vetorial.
+
+
+O objetivo é aprender as funções $f$ e $g$ tal que para uma função de similaridade $h_{\theta}$, e.g., \textit{cosine}, e vetores $t_{q} \in \mathbb{R}^{d}$ e $t_{c} \in \mathbb{R}^{d}$. A função  $h_{\theta}(t_{q}, t_{c})$ seja maximizada para $t_{q}$ e seu correspondente vetor $t_{c}$.
+Através do \textit{joint embedding}, os vetores $t_{q}$ e $t_{c}$ podem ser correlacionados \citep{Gu-deep-code-search:2018, cambronero-deep-learning-code-search:2019}.
+
+    
+
+\section{Trabalhos relacionados}\label{sec:code-retrieval-trabalhos-relacionados}
+
+Conforme \cite{cambronero-deep-learning-code-search:2019}, uma boa parte dos modelos propostos para o \textit{code retrieval} utilizam a abordagem \textit{joint embedding}. Compilamos os principais trabalhos que utilizam esta abordagem na Tabela~\ref{table:summary-joint-embedding}. Para compilar estes artigos, inicialmente, fizemos uso das referências apontadas nos  trabalhos de \citeauthor{Allamanis:2018:SML} e \citeauthor{yao-2018}. Posteriormente, realizamos buscas nas bases Scopus, Google Scholar e IEEE com as palavras-chaves \textit{neural network}, \textit{code retrieval} e \textit{code search}. Após as leituras dos títulos, resumos e palavras-chaves, mantivemos os artigos que vão ao encontro com a nossa definição de \textit{code retrieval}.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{  p{5cm}  p{10cm}   }
+\hline
+\textbf{Artigo} & \textbf{Sumário} \\
+\hline
+\multirow{2}{8em}{\cite{Allamanis-bimodal-source-code-natural-language:2015}} & Representação distribuída para as questões / Árvore sintática para o código-fonte\\
+
+& Combinou os vetores de \textit{tokens} de questão através da média / Combinou os \textit{tokens} de código-fonte usando operações multiplicativas\\
+
+\hline
+ 
+\multirow{2}{8em}{\cite{Chen-bi-variational-autoencoder:2018}} & Representação distribuída para questão e código-fonte\\
+
+& Combinou os vetores de representação distribuída usando \acrshort{vae}\\
+
+ \hline
+\multirow{2}{8em}{\cite{iyer-etal-2016-summarizing}} & \gls{one-hot-encoding} para questão e código-fonte \\
+ 
+ & Combinou os vetores usando \acrshort{lstm} com \gls{mecanismo-atencao}\\
+ 
+ \hline
+ 
+ \multirow{2}{8em}{\cite{Gu-deep-code-search:2018}} & \textit{word2vec} para questão e código-fonte\\
+ 
+ & Combinou os vetores usando uma rede bi-\acrshort{lstm}\\
+ 
+ \hline
+ 
+ \multirow{2}{8em}{\citep{Sachdev-neural-code-search:2018}} & \textit{word2vec} para código-fonte e questão\\
+ 
+ & Combinou os vetores de \textit{tokens} da questão usando a média / Combinou os vetores do código-fonte através do \acrshort{tf-idf} \\
+ 
+ \hline
+ 
+ \multirow{2}{8em}{\cite{cambronero-deep-learning-code-search:2019}} & \textit{word2vec} para questões e código-fonte \\
+ 
+ & Combinou os vetores de cada palavra da questão calculando a média / Combinou os vetores do código-fonte usando o \gls{mecanismo-atencao}\\
+ 
+ \hline
+ 
+\end{tabular}
+\caption{Sumário das diferentes abordagens adotadas pelos pesquisadores para o problema do \textit{code retrieval}. Tabela adaptada de \cite{cambronero-deep-learning-code-search:2019}}
+\label{table:summary-joint-embedding}
+\end{table}
+
+Conforme a Tabela~\ref{table:summary-joint-embedding}, a maioria dos trabalhos representaram as palavras através de vetores de representação distribuída. Com exceção do \cite{iyer-etal-2016-summarizing} que optou por representar com \gls{one-hot-encoding}. Já em relação a combinação das palavras, i.e., representação da sentença os trabalhos de \cite{Gu-deep-code-search:2018} e \cite{iyer-etal-2016-summarizing} optaram pelo uso de redes neurais recorrentes, levando em consideração a ordem das palavras. Já \cite{Allamanis-bimodal-source-code-natural-language:2015} optou por representar as questões como um \textit{bag} de palavras, enquanto para os trechos de código-fonte optou-se por representar através de uma árvore sintática obtida através do compilador. Neste caso, a relação hierárquiva entre as palavras foi levada em consideração. Os trabalhos de \cite{Chen-bi-variational-autoencoder:2018}, \cite{Sachdev-neural-code-search:2018} e \cite{cambronero-deep-learning-code-search:2019} optaram por uma abordagem mais simples e trataram o vetor de tokens como um \textit{bag}.
+
+É interessante observar que nenhum trabalho fez uso das redes convolucionais na recuperação de trecho de código-fonte. Sendo que as redes convolucionais apresentaram um bom desempenho em problemas similares em NLP \citep{lai-etal-2018-review, tan-lstm-qa, feng-2015}. \citeauthor{yao-2018} fez uma menção sobre a possibilidade do uso de CNN na tarefa de \textit{code retrieval}.
+
+Para avaliação do modelo, há uma diferença, basicamente, no corpus de busca. Corpus de busca entende-se como um conjunto formado por trechos de código-fonte no qual o modelo ou o sistema irá utilizar para recuperar o trecho de código mais relevante para uma questão. \cite{iyer-etal-2016-summarizing} e \cite{Chen-bi-variational-autoencoder:2018} utilizaram um corpus de busca composto pelo trecho de código-fonte apontado como correto e outros 49 distratores para avaliação. Já \cite{Gu-deep-code-search:2018}, \cite{Sachdev-neural-code-search:2018} e \cite{cambronero-deep-learning-code-search:2019} utilizaram repositórios do Github.  
+
+\begin{table}[h]
+\centering
+\begin{tabular}{ p{8em} p{6em} P{6em} P{8em} P{6em} }
+\hline
+ &  & \textbf{Treinamento} & \multicolumn{2}{c}{\textbf{Avaliação}} \\
+\hline
+\textbf{Artigo} & \textbf{Linguagem} & \textbf{\# de dados} & \textbf{\# questões anotadas} & \textbf{Corpus de busca}  \\
+\hline
+
+\cite{Allamanis-bimodal-source-code-natural-language:2015} & C\# & $24.812$ & N/D & $50$ \\
+
+\cite{Chen-bi-variational-autoencoder:2018} & \multirow{2}{*}{ C\# / SQL} &
+\multirow{2}{*}{ $66.015$ / $25671$} & \multirow{2}{*}{ $100$} & \multirow{2}{*}{ $50$} \\
+
+\cite{iyer-etal-2016-summarizing} &  &  &  &  \\
+
+\cite{Gu-deep-code-search:2018} & Java & $16$ milhões & $50$ & $4$ milhões \\
+
+\cite{Sachdev-neural-code-search:2018} & Java (Android) & $787$ mil & $100$ & $5,5$ milhões \\
+
+\cite{cambronero-deep-learning-code-search:2019} & Java / Java (Android) & $16$ milhões / $787$ mil & $50$ / $287$ & $4$ milhões / $5,5$ milhões \\
+
+ \hline
+ 
+\end{tabular}
+\caption{Relação da quantidade de dados utilizada para treinamento e avaliação dos modelos. A coluna \textbf{\# questões anotadas} refere-se a quantidade de questões anotadas manualmente para avaliação final do modelo.}
+\label{table:summary-training-data}
+\end{table}
+
+De acordo com a Tabela~\ref{table:summary-training-data}, com exceção de \cite{Allamanis-bimodal-source-code-natural-language:2015}, os outros trabalhos avaliaram o modelo utilizando questões coletadas e anotadas manualmente. Uma análise e verificação manual das respostas feitas pelos modelos foi relizada na maioria dos trabalhos, exceto nos trabalhos de \cite{Allamanis-bimodal-source-code-natural-language:2015} e \cite{cambronero-deep-learning-code-search:2019}. No caso do \cite{cambronero-deep-learning-code-search:2019} foi criado um sistema de avaliação automática, onde as respostas apontadas pelo modelo são consideradas corretas quando a diferença do resultado da função de similaridade $h_{\theta}$ entre elas e a resposta anotada como correta estão dentro de um certo intervalo.
+
+Observamos que todos os trabalhos coletaram questões do \acrfull{sof-ab} para avaliação final do modelo. Isto quer dizer que para avaliar se o modelo está recuperando o trecho de código-fonte que atenda a intenção do usuário, as intenções estão sendo expressas através de questões coletadas do Stack Overflow. Já em relação ao corpus de busca, i.e., onde o modelo vai realizar a busca do trecho de código-fonte, não há um consenso. Alguns trabalhos \citep{Gu-deep-code-search:2018, Sachdev-neural-code-search:2018, cambronero-deep-learning-code-search:2019} utilizam o \acrfull{github-ab}, enquanto outros trabalhos \citep{Allamanis-bimodal-source-code-natural-language:2015, iyer-etal-2016-summarizing, Chen-bi-variational-autoencoder:2018} utilizam trechos de código do Stack Overflow.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{ p{8em} p{5em} p{5em} p{5em} p{5em} p{5em} }
+\hline
+ & \multicolumn{3}{c}{\textbf{Treinamento}} & \multicolumn{2}{c}{\textbf{Avaliação}} \\
+\hline
+\textbf{Artigo} & \textbf{Fonte} & \textbf{Questões} & \textbf{Código-Fonte} & \textbf{Fonte das questões} & \textbf{Fonte do corpus de busca}\\
+\hline
+
+\cite{Allamanis-bimodal-source-code-natural-language:2015} & \acrshort{sof-ab} & Título da postagem & Trecho de código-fonte & \acrshort{sof-ab} & \acrshort{sof-ab}\\
+
+\cite{Chen-bi-variational-autoencoder:2018} & \acrshort{sof-ab} & Título da postagem & Trecho de código-fonte & \acrshort{sof-ab} & \acrshort{sof-ab}\\
+
+\cite{iyer-etal-2016-summarizing} & \acrshort{sof-ab} & Título da postagem & Trecho de código-fonte & \acrshort{sof-ab} & \acrshort{sof-ab}\\
+
+\cite{Gu-deep-code-search:2018} & \acrshort{github-ab} & Docstring & Método & \acrshort{sof-ab} & \acrshort{github-ab}\\
+
+\cite{Sachdev-neural-code-search:2018} & \acrshort{github-ab} & N/D & Método	& \acrshort{sof-ab} & \acrshort{github-ab}\\
+
+\cite{cambronero-deep-learning-code-search:2019} & \acrshort{github-ab} / \acrshort{sof-ab} & Docstring / Título da postagem & Método / Trecho de código-fonte & \acrshort{sof-ab} & \acrshort{github-ab}\\
+
+ \hline
+ 
+\end{tabular}
+\caption{Repositórios utilizados para coleta dos dados de treinamento e avaliação dos modelos no problema de \textit{code retrieval}.}
+\label{table:summary-source-data}
+\end{table}
+
+
+A composição dos pares de questões e trechos de código-fonte para obtenção do modelo diferiu de acordo com a fonte utilizada para coleta dos dados de treinamento. Os trabalhos que utilizaram o \acrfull{github-ab}, utilizaram os métodos como trecho de código-fonte e o \gls{docstring} deste método como descrição. No caso do \acrfull{sof-ab}, os pares foram formados pelo título da questão e pelo trecho de código-fonte da resposta aceita.
+
+De acordo com \cite{cambronero-deep-learning-code-search:2019}, os dados utilizados para compor os pares utilizados no treinamento do modelo, influenciaram no desempenho final. Em seu trabalho, foram observados um ganho no desempenho das redes neurais quando treinados com os títulos das questões e trechos de código-fonte do \acrfull{sof-ab}, em comparação aos pares formados por \gls{docstring} e métodos extraídos dos códigos-fontes dos projetos do \acrfull{github-ab}. Além da composição dos pares, a variação das questões e trechos de código-fonte é um fator importante também. Em um trabalho recente, \cite{yao-2018} coletou milhares de pares de perguntas e trechos de código-fonte do \textit{StackOverFlow}. Eles treinaram o modelo proposto por \cite{iyer-etal-2016-summarizing} neste conjunto de dados e obtiveram um ganho de mais de 10\% no desempenho final quando comparado com os dados originais.
+
+Para \cite{cambronero-deep-learning-code-search:2019}, o modelo consegue aproximar mais o trecho de código-fonte as intenções do usuário quando treinados com questões do \textit{StackOverFlow}. E \cite{yao-2018} apontam para uma característica importante a ser observada nos dados, a variabilidade. A variabilidade auxilia na obtenção de um modelo mais robusto e que generaliza bem.
+
+Conforme citado anteriormente e até onde o nosso conhecimento alcança, não encontramos trabalhos e artigos que verifiquem o desempenho das redes convolucionais na tarefa de \textit{code retrieval}. A proposta deste trabalho é verificar o desempenho das redes convolucionais quando adicionada a uma rede neural recorrente e também isoladamente. Além disso, iremos comparar o nosso modelo com o modelo proposto por \cite{cambronero-deep-learning-code-search:2019} que é o estado da arte. E para treinamento do modelo, utilizaremos os dados coletados por \cite{yao-2018} devido aos resultados promissores apontados no artigo. E conforme \cite{cambronero-deep-learning-code-search:2019}, as questões do \textit{StackOverFlow} aproximam-se mais das intenções do usuário, indo ao encontro com a nossa definição de \textit{code retrieval}.
